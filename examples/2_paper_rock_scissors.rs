@@ -28,15 +28,18 @@ fn parse_symbol(symbol: &str) -> Symbol {
 fn parse_symbols(elf: &str, me: &str) -> (Symbol, Symbol) {
     let elf_symbol = parse_symbol(elf);
     let my_symbol: Symbol;
-    if me == "X" {  // I need to lose
+    if me == "X" {
+        // I need to lose
         my_symbol = match elf_symbol {
             Symbol::Rock => Symbol::Scissors,
             Symbol::Paper => Symbol::Rock,
             Symbol::Scissors => Symbol::Paper,
         };
-    } else if me == "Y" {  // I need a draw
+    } else if me == "Y" {
+        // I need a draw
         my_symbol = elf_symbol
-    } else if me == "Z" {  // I need to win
+    } else if me == "Z" {
+        // I need to win
         my_symbol = match elf_symbol {
             Symbol::Rock => Symbol::Paper,
             Symbol::Paper => Symbol::Scissors,
@@ -93,7 +96,7 @@ fn match_points(elf: Symbol, me: Symbol) -> usize {
             Symbol::Rock => 6,
             Symbol::Paper => 0,
             Symbol::Scissors => 3,
-        }
+        },
     };
     res
 }

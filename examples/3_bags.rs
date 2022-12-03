@@ -47,7 +47,7 @@ fn exercise_1(bags: &[String]) -> usize {
     res
 }
 
-/// From the bags of three elves, it finds the group badge and returns its priority code.
+/// From the bags of the three elves of the group, it finds the group badge and returns its priority code.
 /// If it does not find the group badge, it panics.
 fn find_group_badge(elf_1: &str, elf_2: &str, elf_3: &str) -> usize {
     for char_1 in elf_1.chars() {
