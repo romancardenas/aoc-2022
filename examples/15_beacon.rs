@@ -69,19 +69,23 @@ impl FromStr for Measure {
         let mut points: Vec<Point> = Vec::new();
         let re = Regex::new(r"x=(-?\d+), *y=(-?\d+)").unwrap();
         for cap in re.captures_iter(s) {
-            points.push(Point{x: cap[1].parse::<i32>().unwrap(),y: cap[2].parse::<i32>().unwrap()});
+            points.push(Point {
+                x: cap[1].parse::<i32>().unwrap(),
+                y: cap[2].parse::<i32>().unwrap(),
+            });
         }
         match points.len() {
-            2 => {
-                Ok(Measure { sensor: points[0], beacon: points[1]})
-            },
-            _ => Err("different number of points")
+            2 => Ok(Measure {
+                sensor: points[0],
+                beacon: points[1],
+            }),
+            _ => Err("different number of points"),
         }
     }
 }
 
 /// Reads the input file and returns the list of measurements.
-fn read_input(path: &str) -> Vec<Measure>{
+fn read_input(path: &str) -> Vec<Measure> {
     let mut measures = Vec::new();
     let file = File::open(path).expect("input file not found");
     let reader = BufReader::new(file);
@@ -102,7 +106,7 @@ fn exercise_1(scenario: &[Measure], y: i32) -> usize {
             // If so, we iterate over all the potential points in the range of the sensor
             let max_i = manhattan - (measure.sensor.y - y).abs();
             for x in (measure.sensor.x - max_i)..(measure.sensor.x + max_i + 1) {
-                let point = Point {x, y};
+                let point = Point { x, y };
                 // If the point is not the beacon, we add it to the set of impossibles
                 if point != measure.beacon {
                     impossible.insert(point);
@@ -116,7 +120,7 @@ fn exercise_1(scenario: &[Measure], y: i32) -> usize {
 /// Returns the tuning frequency of the beacon (if any)
 fn exercise_2(scenario: &[Measure], min_val: i32, max_val: i32) -> Option<i64> {
     // We iterate over  rows looking for intersections with the sensors' ranges
-    for y in min_val.. max_val {
+    for y in min_val..max_val {
         let mut intersections = Vec::new();
         // For every measure, we look for the intersection with the current row
         for measure in scenario.iter() {
@@ -141,7 +145,10 @@ fn exercise_2(scenario: &[Measure], min_val: i32, max_val: i32) -> Option<i64> {
             let (second_left, second_right) = intersections[i + 1];
             if second_left > first_right + 1 {
                 // There is a gap between intersections! this is the solution
-                let point = Point{x: second_left - 1, y};
+                let point = Point {
+                    x: second_left - 1,
+                    y,
+                };
                 return Some(point.tuning_freq());
             }
             // If there is no gap between intersections, we modify the tight-most value
@@ -155,7 +162,11 @@ fn exercise_2(scenario: &[Measure], min_val: i32, max_val: i32) -> Option<i64> {
 fn main() {
     let scenario = read_input("data/15_input.txt");
     let row = 2000000;
-    println!("Number of points where the beacon cannot be in row {}: {}", row, exercise_1(&scenario, row));
+    println!(
+        "Number of points where the beacon cannot be in row {}: {}",
+        row,
+        exercise_1(&scenario, row)
+    );
     let (min_val, max_val) = (0, 4000000);
     let beacon = exercise_2(&scenario, min_val, max_val);
     if let Some(b) = beacon {
