@@ -1,115 +1,280 @@
-use regex::Regex;
-use std::cmp;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::ops::{Add, AddAssign, Sub};
 
-/// Struct for representing the scenario
-#[derive(Debug)]
+/// Structure that represents a point of the rope
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
+struct Point (i32, i32);
+
+impl Add<Point> for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Point) -> Self::Output {
+        Self(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
+
+/// Trait for adding points in place
+impl AddAssign<Point> for Point {
+    fn add_assign(&mut self, rhs: Point) {
+        self.0 += rhs.0;
+        self.1 += rhs.1;
+    }
+}
+
+/// Trait for subtracting points
+impl Sub<Point> for Point {
+    type Output = Self;
+
+    fn sub(self, rhs: Point) -> Self::Output {
+        Self(self.0 - rhs.0, self.1 - rhs.1)
+    }
+}
+
+
+struct Rock {
+    /// The location of a rock is always the upper left corner,
+    location: Point,
+    /// This vector indicates which internal points are rock in case of collision
+    pieces: Vec<Point>,
+}
+
+impl Rock {
+    fn new(location: Point, n: usize) -> Rock {
+        match n {
+            0 => Rock {
+                location,
+                pieces: vec![
+                    Point(0, 0), Point(1, 0), Point(2, 0), Point (3, 0),
+                ],
+            },
+            1 => Rock {
+                location,
+                pieces: vec![               Point(1, 2),
+                    Point(0, 1), Point(1, 1), Point(2, 1),
+                                            Point(1, 0),
+                ],
+            },
+            2 => Rock {
+                location,
+                pieces: vec![
+                                                                   Point(2, 2),
+                                                                   Point(2, 1),
+                    Point(0, 0), Point(1, 0), Point(2, 0),
+                ],
+            },
+            3 => Rock {
+                location,
+                pieces: vec![
+                    Point(0, 3),
+                    Point(0, 2),
+                    Point(0, 1),
+                    Point(0, 0),
+                ],
+            },
+            4 => Rock {
+                location,
+                pieces: vec![
+                    Point(0, 1), Point(1, 1),
+                    Point(0, 0), Point(1, 0),
+                ],
+            },
+            _ => panic!("unknown rock code")
+        }
+    }
+
+    fn advance(&mut self, new_location: Point) {
+        self.location = new_location;
+    }
+
+    fn get_points(&self) -> Vec<Point> {
+        self.pieces.iter().map(|&p| self.location + p).collect()
+    }
+}
+
 struct Scenario {
-    /// Flows for each valve.
-    flows: Vec<i32>,
-    /// Neighboring valves (i.e., the edges of the graph)
-    neighbors: Vec<Vec<usize>>,
+    width: usize,
+    map: Vec<Vec<bool>>,
+    jets: Vec<Point>,
 }
 
 impl Scenario {
-    fn new(names: Vec<String>, flows: Vec<i32>, tunnels: Vec<Vec<String>>) -> Self {
-        // First we parse the neighboring valves as if they were indices
-        let mut neighbors: Vec<Vec<usize>> = Vec::new();
-        for conn in tunnels.into_iter() {
-            neighbors.push(
-                conn.iter()
-                    .map(|s| names.iter().position(|x| x == s).unwrap())
-                    .collect(),
-            );
-        }
-        Self { flows, neighbors }
+    fn new(width: usize, jets: Vec<Point>) -> Self {
+        Self {width, map: Vec::new(), jets}
     }
 
-    fn best_path(
-        &self,
-        max_t: i32,      // maximum time before the volcano erupts
-        n_people: usize, // number of people working on leaving pressure
-        valve: usize,    // Current valve
-        opened: usize,   // bit mask indicating which valves are opened
-        t: i32,          // current time limit
-        memo: &mut HashMap<(usize, usize, usize, i32), i32>, // handy cache
-    ) -> i32 {
-        // Break condition -> t is 0...
-        if t == 0 {
-            return match n_people {
-                1 => 0, // ... and there's no people left
-                // Otherwise, we check how the next person would perform
-                n => self.best_path(max_t, n - 1, 0, opened, max_t, memo),
-            };
+    fn reset(&mut self) {
+        self.map.clear();
+    }
+
+    fn n_blank_rows(&self) -> usize {
+        for (i, line) in self.map.iter().rev().enumerate() {
+            if !line.iter().all(|&b| b) {
+                return i;
+            }
         }
-        let mem_key = (n_people, valve, opened, t);
-        // Break condition: result is already in the cache
-        if memo.contains_key(&mem_key) {
-            return memo[&mem_key];
+        0
+    }
+
+    fn get_top_signature(&self) -> [bool; 7] {
+        let mut res = [false; 7];
+        let top = self.map.len().saturating_sub(1) - self.n_blank_rows();
+        for line in self.map[top] {
+            for i in 0..7 {
+                res[i] = line[i];
+            }
         }
-        let mut best = 0;
-        // If this valve is still closed, we explore how good would be that move
-        let valve_closed = opened & (1 << valve) == 0;
-        if valve_closed && self.flows[valve] > 0 {
-            let new_opened = opened | (1 << valve);
-            best = self.flows[valve] * (t - 1)
-                + self.best_path(max_t, n_people, valve, new_opened, t - 1, memo);
+        res
+    }
+
+    fn get_jet(&self, t: usize) -> Point {
+        let n_jets = self.jets.len();
+        self.jets[t % n_jets]
+    }
+
+    fn free_space(&self, points: &[Point]) -> bool {
+        points.iter().all(|p| {
+            match p.0 >= 0 && p.1 >= 0 {
+                true => {
+                    match self.map.get(p.1 as usize) {
+                        Some(row) => {
+                            match row.get(p.0 as usize) {
+                                Some(&point) => point,  // Check if there is something already
+                                None => false,  // It surpassed the right margin of the scenario
+                            }
+                        },
+                        None => true, // It is way up, so it is valid
+                    }
+                },
+                false => false,  // It is out under the floor!
+            }
+        })
+    }
+
+    fn how_tall(&mut self, n_rocks: usize, mem: &mut HashMap<([bool; 7], usize, usize), (usize, usize)>) -> usize {
+        let mut t = 0;
+        for n in 0..n_rocks {
+
+            let top = self.get_top_signature();
+            let jet_i = t % self.jets.len();
+            let rock_i = n % 5;
+            let mem_key = (top, jet_i, rock_i);
+            if mem.contains_key(&mem_key) {
+                todo!() // Ha habido un match!
+            }
+            // First we add empty rows (if required)
+            for _ in 0..(3 as usize).saturating_sub(self.n_blank_rows()) {
+                self.map.push(vec![true; self.width]);
+            }
+            // We create the corresponding rock
+            let mut prev_location = Point(2, self.map.len() as i32);
+            let mut rock = Rock::new(prev_location, rock_i);
+
+            // The rock moves until we reach an invalid location
+            while self.free_space(&rock.get_points()) {
+                prev_location = rock.location;
+                // First, we try to move according to the jet
+                rock.advance(prev_location + self.jets[jet_i]);
+                if !self.free_space(&rock.get_points()) {
+                    // Oops! the location is invalid, we go back
+                    rock.advance(prev_location);
+                }
+                // Then, we try to go down
+                prev_location = rock.location;
+                rock.advance(prev_location + Point(0, -1));
+                t += 1;  // At the end, we increase the time
+            }
+            // Finally, we go back to the previous valid location and fill the gap in the map
+            rock.advance(prev_location);
+            // We add rows if needed...
+            for point in rock.get_points() {
+                while point.1 as usize >= self.map.len() {
+                    self.map.push(vec![true; self.width]);
+                }
+                self.map[point.1 as usize][point.0 as usize] = false;
+            }
+            mem.insert(mem_key, (t, self.map.len() - self.n_blank_rows()));
         }
-        // In any case, we also check how wise would be to move to neighboring valves
-        for &other_valve in self.neighbors[valve].iter() {
-            best = cmp::max(
-                best,
-                self.best_path(max_t, n_people, other_valve, opened, t - 1, memo),
-            );
+        self.map.len() - self.n_blank_rows()
+    }
+
+    fn exercise_1(&mut self, n_rocks: usize) -> usize {
+        let mut t = 0;
+        for n in 0..n_rocks {
+            // First we add empty rows
+            for _ in 0..(3 as usize).saturating_sub(self.n_blank_rows()) {
+                self.map.push(vec![true; self.width]);
+            }
+            // We create the corresponding rock
+            let mut prev_location = Point(2, self.map.len() as i32);
+            let mut rock = Rock::new(prev_location, n);
+
+            while self.free_space(&rock.get_points()) {
+                prev_location = rock.location;
+                // First, we try to move according to the jet
+                let jet = self.get_jet(t);
+                rock.advance(prev_location + jet);
+                if !self.free_space(&rock.get_points()) {
+                    // If the location is invalid, we go back
+                    rock.advance(prev_location);
+                }
+                // Then, we try to go down
+                prev_location = rock.location;
+                rock.advance(prev_location + Point(0, -1));
+                t += 1;
+            }
+            // Finally, we go back to the previous valid location and fill the gap in the map
+            rock.advance(prev_location);
+
+            for point in rock.get_points() {
+                while point.1 as usize >= self.map.len() {
+                    self.map.push(vec![true; self.width]);
+                }
+                self.map[point.1 as usize][point.0 as usize] = false;
+            }
         }
-        // Finally, we add the result to the cache and return the best result
-        memo.insert(mem_key, best);
-        best
+        self.map.len() - self.n_blank_rows()
     }
 }
+
+impl Display for Scenario {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for row in self.map.iter().rev() {
+            write!(f, "|")?;
+            for val in row.iter().map(|&x| match x { true => ".", false => "#" }) {
+                write!(f, "{}", val)?;
+            }
+            writeln!(f, "|")?;
+        }
+        write!(f, "+")?;
+        for _ in 0..self.width {
+            write!(f, "-")?;
+        }
+        writeln!(f, "+")
+    }
+}
+
 
 /// Reads the input file and returns the list of measurements.
-fn read_input(path: &str) -> Scenario {
+fn read_input(path: &str) -> Vec<Point> {
     let file = File::open(path).expect("input file not found");
     let reader = BufReader::new(file);
-    let lines = reader.lines();
-    let re = Regex::new(
-        r"^Valve ([A-Z]+) has flow rate=([0-9]+); tunnels? leads? to valves? ([A-Z,\s]+)",
-    )
-    .unwrap();
+    let mut lines = reader.lines();
 
-    let mut names = Vec::new();
-    let mut flows = Vec::new();
-    let mut conns: Vec<Vec<String>> = Vec::new();
-    for line in lines.map(|l| l.expect("error parsing line")) {
-        let cap = re.captures_iter(&line).next().unwrap();
-        names.push(cap[1].to_string());
-        flows.push(cap[2].parse::<i32>().unwrap());
-        conns.push(cap[3].split(',').map(|s| s.trim().to_string()).collect());
-    }
-    Scenario::new(names, flows, conns)
-}
-
-fn exercise_1(scenario: &Scenario, t: i32) -> i32 {
-    let mut memo = HashMap::new();
-    scenario.best_path(t, 1, 0, 0, t, &mut memo)
-}
-
-fn exercise_2(scenario: &Scenario, t: i32) -> i32 {
-    let mut memo = HashMap::new();
-    scenario.best_path(t - 4, 2, 0, 0, t - 4, &mut memo)
+    lines.next().unwrap().unwrap().chars().map(|c| {
+        match c {
+            '<' => Point(-1, 0),
+            '>' => Point(1, 0),
+            _ => panic!("unknown steam direction")
+        }
+    }).collect()
 }
 
 fn main() {
-    let scenario = read_input("data/16_input_test.txt");
-    println!(
-        "I can release {} pressure by myself",
-        exercise_1(&scenario, 30)
-    );
-    println!(
-        "I can release {} pressure with the elephant",
-        exercise_2(&scenario, 30)
-    );
+    let jets = read_input("data/17_input_test.txt");
+    let mut scenario = Scenario::new(7, jets);
+    println!("{}", &scenario.exercise_1(2022));
+    println!("{}", &scenario.exercise_2(1000000000000));
 }
