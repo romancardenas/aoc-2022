@@ -113,7 +113,7 @@ fn total_points(plays: &[(Symbol, Symbol)]) -> usize {
 fn main() {
     // First we read the input file.
     // let plays = read_input_1("data/2_input.txt"); // For the first exercise
-    let plays = read_input_2("data/2_input.txt"); // For the second exercise
+    let plays = read_input_2("data/02_input.txt"); // For the second exercise
     println!("{:?}", plays);
     // Finally, we sum the points obtained in the competition.
     println!("{:?}", total_points(&plays))

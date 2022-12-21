@@ -86,7 +86,7 @@ fn print_top(scenario: &Scenario) {
 
 fn main() {
     // First we read the input file.
-    let (mut scenario, moves) = read_input("data/5_input.txt");
+    let (mut scenario, moves) = read_input("data/05_input.txt");
     print_top(&scenario);
     println!();
     // Then, we make a copy of the scenario and sort it according to the first exercise.

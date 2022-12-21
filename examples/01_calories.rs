@@ -53,7 +53,7 @@ fn sum_first_elves(elves: &[usize], n: usize) -> usize {
 
 fn main() {
     // First we read the input file and store it as closer as possible to the input format.
-    let elves_food = read_input("data/1_input.txt");
+    let elves_food = read_input("data/01_input.txt");
     println!("{:?}", elves_food);
     // Then, we sum the calories obtained by every elf.
     let mut elves_calories = sum_calories(&elves_food);

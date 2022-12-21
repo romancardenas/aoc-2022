@@ -38,7 +38,7 @@ fn detect_sequence(code: &str, n: usize) -> usize {
 
 fn main() {
     // First we read the input file.
-    let code = read_input("data/6_input.txt");
+    let code = read_input("data/06_input.txt");
     println!("{}", detect_sequence(&code, 4));
     println!("{}", detect_sequence(&code, 14));
 }

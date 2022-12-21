@@ -134,7 +134,7 @@ fn simulate(scenario: &mut Scenario, directions: &[Point]) -> usize {
 
 fn main() {
     // First we read the input file.
-    let moves = read_input("data/9_input.txt");
+    let moves = read_input("data/09_input.txt");
     // Exercise 1
     let mut scenario_1 = Scenario::new(2);
     println!("{:?}", simulate(&mut scenario_1, &moves));

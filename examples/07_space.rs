@@ -127,7 +127,7 @@ fn exercise_2(dir: &Directory, space: usize) -> Option<usize> {
 
 fn main() {
     // First we read the input file.
-    let x = read_input("data/7_input.txt");
+    let x = read_input("data/07_input.txt");
     println!("{:?}", exercise_1(&x, 100000));
     let required_space = 30000000 - (70000000 - x.size());
     let min_space = exercise_2(&x, required_space);

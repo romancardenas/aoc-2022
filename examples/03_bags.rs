@@ -75,7 +75,7 @@ fn exercise_2(bags: &[String]) -> usize {
 
 fn main() {
     // First we read the input file.
-    let bags = read_input("data/3_input.txt");
+    let bags = read_input("data/03_input.txt");
     println!("{:?}", exercise_1(&bags));
     println!("{:?}", exercise_2(&bags));
 }

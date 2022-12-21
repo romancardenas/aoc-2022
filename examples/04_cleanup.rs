@@ -54,7 +54,7 @@ fn exercise_2(areas: &[(ElfAreas, ElfAreas)]) -> usize {
 
 fn main() {
     // First we read the input file.
-    let areas = read_input("data/4_input.txt");
+    let areas = read_input("data/04_input.txt");
     println!("{:?}", exercise_1(&areas));
     println!("{:?}", exercise_2(&areas));
 }

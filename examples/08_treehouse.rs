@@ -134,7 +134,7 @@ fn exercise_2(scenario: &Vec<Vec<usize>>) -> usize {
 
 fn main() {
     // First we read the input file.
-    let x = read_input("data/8_input.txt");
+    let x = read_input("data/08_input.txt");
     println!("{}", exercise_1(&x));
     println!("{}", exercise_2(&x));
 }
